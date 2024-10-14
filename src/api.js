@@ -1,11 +1,11 @@
 const axios = require('axios');
 
-async function getToken() {
+async function getToken(session) {
   const { data } = await axios({
     url: 'https://user-domain.blum.codes/api/v1/auth/provider/PROVIDER_TELEGRAM_MINI_APP',
     method: 'POST',
     data: {
-      query: process.env.SESSION_KEY,
+      query: session,
       referralToken: 'vTHusRz4j0', // changeable
     },
   });

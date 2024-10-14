@@ -4,7 +4,7 @@ const readlineSync = require('readline-sync');
 const moment = require('moment');
 const fs = require('fs');
 const path = require('path');
-
+const {sessiondata}=require('./data.js')
 const {
   getToken,
   getUsername,
@@ -29,12 +29,11 @@ const { delay } = require('./src/utils');
 const { displayHeader } = require('./src/display');
 
 const TOKEN_FILE_PATH = path.join(__dirname, 'accessToken.txt');
-
-const getTokenAndSave = async () => {
-  const token = await getToken();
+console.log(sessiondata)
+const getTokenAndSave = async (session) => {
+  const token = await getToken(session);
   fs.writeFileSync(TOKEN_FILE_PATH, token);
   console.log('✅ New token has been saved.');
-
   return token;
 };
 
@@ -341,13 +340,26 @@ const handleOneTimeFlow = async (token) => {
     console.log('🎮 Claiming game points...');
     const balance = await getBalance(token);
 
+ await delay(5000)
+
+    console.log('🚜 Starting farming session...');
+    const farmingSession = await startFarmingSession(token);
+    const farmStartTime = moment(farmingSession.startTime).format(
+      'MMMM Do YYYY, h:mm:ss A'
+    );
+    const farmEndTime = moment(farmingSession.endTime).format(
+      'MMMM Do YYYY, h:mm:ss A'
+    );
+    console.log(`✅ Farming session started!`.green);
+    console.log(`⏰ Start time: ${farmStartTime}`);
+    console.log(`⏳ End time: ${farmEndTime}`);
     if (balance.playPasses > 0) {
       let counter = balance.playPasses;
       while (counter > 0) {
         const gameData = await getGameId(token);
 
         console.log('⌛ Please wait for 1 minute to play the game...'.yellow);
-        await delay(60000);
+        await delay(30000);
 
         const randPoints = Math.floor(Math.random() * (240 - 160 + 1)) + 160;
         const letsPlay = await claimGamePoints(
@@ -371,19 +383,6 @@ const handleOneTimeFlow = async (token) => {
           .red
       );
     }
-
-    console.log('🚜 Starting farming session...');
-    const farmingSession = await startFarmingSession(token);
-    const farmStartTime = moment(farmingSession.startTime).format(
-      'MMMM Do YYYY, h:mm:ss A'
-    );
-    const farmEndTime = moment(farmingSession.endTime).format(
-      'MMMM Do YYYY, h:mm:ss A'
-    );
-    console.log(`✅ Farming session started!`.green);
-    console.log(`⏰ Start time: ${farmStartTime}`);
-    console.log(`⏳ End time: ${farmEndTime}`);
-
     if (balance.farming.balance) {
       console.log(
         `🌾 Updated farming balance: ${balance.farming.balance} BLUM`.green
@@ -406,50 +405,52 @@ const handleOneTimeFlow = async (token) => {
 
 const runScript = async () => {
   displayHeader();
+while(true){
+  for(let i=0;i<sessiondata.length;i++){
+    const token = await getTokenAndSave(sessiondata[i]);
 
-  const token = await getTokenAndSave();
-
-  const username = await getUsername(token);
-  const balance = await getBalance(token);
-  const tribe = await getTribe(token);
-
-  console.log(`👋 Hello, ${username}!`.green);
-  console.log(
-    `💰 Your current BLUM balance is: ${balance.availableBalance}`.green
-  );
-  console.log(`🎮 Your chances to play the game: ${balance.playPasses}`);
-  console.log('');
-  console.log('🏰 Your tribe details:');
-  if (tribe) {
-    console.log(`   - Name: ${tribe.title}`);
-    console.log(`   - Members: ${tribe.countMembers}`);
-    console.log(`   - Earn Balance: ${tribe.earnBalance}`);
-    console.log(`   - Your Role: ${tribe.role}`);
-    console.log('');
-  } else {
-    console.error('🚨 Tribe not found!'.red);
+    const username = await getUsername(token);
+    const balance = await getBalance(token);
+    const tribe = await getTribe(token);
+  
+    console.log(`👋 Hello, ${username}!`.green);
     console.log(
-      `Join HCA Tribe here: https://t.me/HappyCuanAirdrop/19694\n`.blue
+      `💰 Your current BLUM balance is: ${balance.availableBalance}`.green
     );
-  }
-
-  const option = readlineSync.question(
-    'Choose the script to run:\n1. Default Flow\n2. One-time Flow\nEnter 1 or 2: '
-  );
-
-  if (option === '1') {
-    await handleDefaultFlow(token);
-  } else if (option === '2') {
-    while (true) {
-      const refreshedToken = await getTokenAndSave();
-      await handleOneTimeFlow(refreshedToken);
-      console.log('🔄 Restarting one-time flow in 60 minutes...'.yellow);
-      await delay(3600000);
+    console.log(`🎮 Your chances to play the game: ${balance.playPasses}`);
+    console.log('');
+    console.log('🏰 Your tribe details:');
+    if (tribe) {
+      console.log(`   - Name: ${tribe.title}`);
+      console.log(`   - Members: ${tribe.countMembers}`);
+      console.log(`   - Earn Balance: ${tribe.earnBalance}`);
+      console.log(`   - Your Role: ${tribe.role}`);
+      console.log('');
+    } else {
+      console.error('🚨 Tribe not found!'.red);
+      console.log(
+        `Join HCA Tribe here: https://t.me/HappyCuanAirdrop/19694\n`.blue
+      );
     }
-  } else {
-    console.log('🚫 Invalid option selected! Please restart the program.'.red);
-    process.exit(1);
+  
+    const option = '2'
+  
+    if (option === '1') {
+      await handleDefaultFlow(token);
+    } else if (option === '2') {
+     
+        const refreshedToken = await getTokenAndSave(sessiondata[i]);
+        await handleOneTimeFlow(refreshedToken);
+      
+     
+    } else {
+      console.log('🚫 Invalid option selected! Please restart the program.'.red);
+      process.exit(1);
+    }
   }
+  console.log('🔄 Restarting one-time flow in 60 minutes...'.yellow);
+  await delay(3600000);   
+}
 };
 
 runScript();
